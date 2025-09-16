@@ -7,15 +7,16 @@
         .container { display: flex; flex-direction: column; gap: 20px; }
         .section { border: 1px solid #ddd; padding: 20px; border-radius: 8px; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h1, h2 { color: #333; }
-        textarea, input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; }
-        textarea { height: 100px; }
+        textarea { width: 100%; height: 100px; margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
         button { padding: 12px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px; }
         button:hover { background: #45a049; }
         button:disabled { background: #cccccc; cursor: not-allowed; }
-        .result, .seed-display, .attempt-log { background: #f9f9f9; padding: 10px; border-radius: 4px; word-break: break-all; margin-top: 10px; font-family: monospace; font-size: 12px; }
+        .result { background: #f9f9f9; padding: 15px; border-radius: 4px; word-break: break-all; margin-top: 10px; }
         .error { color: #d32f2f; font-weight: bold; }
         .success { color: #388e3c; font-weight: bold; }
         .warning { color: #f57c00; font-weight: bold; }
+        .seed-display { font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; word-break: break-all; }
         .copy-button { background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; }
         .copy-button:hover { background: #0b7dda; }
         .comparison-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
@@ -27,6 +28,7 @@
         .system-config { background-color: #f3e5f5; padding: 15px; border-radius: 8px; margin: 15px 0; }
         .progress-bar { width: 100%; height: 20px; background-color: #e0e0e0; border-radius: 10px; margin: 10px 0; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s ease; }
+        .attempt-log { background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
         .tab-container { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 15px; }
         .tab { padding: 10px 20px; cursor: pointer; background-color: #f5f5f5; border: 1px solid #ddd; border-bottom: none; border-radius: 5px 5px 0 0; margin-right: 5px; }
         .tab.active { background-color: white; border-bottom: 1px solid white; margin-bottom: -1px; }
@@ -37,6 +39,7 @@
 <body>
     <div class="container">
         <h1>qib13</h1>
+        
         <div class="tab-container">
             <div class="tab active" onclick="switchTab('generate')">Generate Systems</div>
             <div class="tab" onclick="switchTab('encode')">Generate Seed</div>
@@ -44,62 +47,66 @@
             <div class="tab" onclick="switchTab('test')">Batch Test</div>
         </div>
         
-        <!-- Generate Systems -->
         <div id="generate-tab" class="tab-content active">
             <div class="section">
                 <h2>Generate Reproducible Systems</h2>
                 <div class="system-config">
                     <label for="masterSeed">Master Seed:</label>
                     <input type="text" id="masterSeed" placeholder="Enter your master seed">
+                    
                     <label for="numSystems">Number of Deviation Systems (N):</label>
                     <input type="number" id="numSystems" min="1" max="100" value="10">
+                    
                     <button onclick="generateSystems()">Generate Systems</button>
                     <button onclick="useDefaultSystems()" class="secondary-button">Use Default Systems</button>
                 </div>
                 <div id="systemStatus" class="info"></div>
             </div>
         </div>
-
-        <!-- Generate Seed -->
+        
         <div id="encode-tab" class="tab-content">
             <div class="section">
                 <h2>Generate Seed from Generator Code</h2>
                 <input type="text" id="generatorCodeInput" maxlength="13" placeholder="Enter 13-letter generator code (a-z)">
+                
                 <div class="mode-selector">
                     <label><input type="radio" name="generateMode" value="original" checked> Original Mode (System 1)</label>
                     <label><input type="radio" name="generateMode" value="deviation"> Deviation Mode (System 2)</label>
                     <label><input type="radio" name="generateMode" value="random"> Random System</label>
                     <label><input type="radio" name="generateMode" value="specific"> Specific System</label>
                 </div>
+                
                 <div id="generateSpecificSystemInput" style="display: none; margin: 10px 0;">
                     <label for="generateSpecificSystemIndex">System Index (1-N):</label>
                     <input type="number" id="generateSpecificSystemIndex" min="1" max="10" value="1">
                 </div>
+                
                 <button onclick="generateSeed()">Generate 55-Letter Seed</button>
                 <div id="generateResult" class="result"></div>
             </div>
         </div>
-
-        <!-- Recover Code -->
+        
         <div id="recover-tab" class="tab-content">
             <div class="section">
                 <h2>Recover Generator Code from Seed</h2>
                 <input type="text" id="seedInput" maxlength="55" placeholder="Enter 55-letter seed (a-z)">
+                
                 <div class="mode-selector">
                     <label><input type="radio" name="recoverMode" value="sequential" checked> Sequential Recovery (Try All Systems)</label>
                     <label><input type="radio" name="recoverMode" value="original"> Try Original Only</label>
                     <label><input type="radio" name="recoverMode" value="specific"> Try Specific System</label>
                 </div>
+                
                 <div id="specificSystemInput" style="display: none; margin: 10px 0;">
                     <label for="specificSystemIndex">System Index (1-N):</label>
                     <input type="number" id="specificSystemIndex" min="1" max="10" value="1">
                 </div>
+                
                 <button onclick="recoverGeneratorCode()">Recover Generator Code</button>
                 <div id="recoverResult" class="result"></div>
             </div>
         </div>
-
-        <!-- Batch Test -->
+        
         <div id="test-tab" class="tab-content">
             <div class="section">
                 <h2>Batch Recovery Test</h2>
@@ -111,235 +118,706 @@
             </div>
         </div>
     </div>
-
-<script>
-/* ================= Secure xoshiro256** PRNG ================= */
-class Xoshiro256StarStar {
-    constructor(seedArray) {
-        if (!seedArray || seedArray.length !== 8) {
-            throw new Error("Seed array must be 8 32-bit integers (256-bit total)");
+    <script>
+        let allSystems = [];
+        let currentNumSystems = 10;
+        let currentMasterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
+        
+        // ---------- Strong deterministic RNG: xoshiro128+ seeded from string ----------
+        // xmur3: string -> 32-bit seed generator (standard small seeder)
+        function xmur3(str) {
+            let h = 1779033703 ^ str.length;
+            for (let i = 0; i < str.length; i++) {
+                h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+                h = (h << 13) | (h >>> 19);
+            }
+            return function() {
+                h = Math.imul(h ^ (h >>> 16), 2246822507);
+                h = Math.imul(h ^ (h >>> 13), 3266489909);
+                return (h ^= h >>> 16) >>> 0;
+            };
         }
-        // split 256-bit seed into 4 x 64-bit state
-        this.state = [
-            (BigInt(seedArray[0]) << 32n) | BigInt(seedArray[1]),
-            (BigInt(seedArray[2]) << 32n) | BigInt(seedArray[3]),
-            (BigInt(seedArray[4]) << 32n) | BigInt(seedArray[5]),
-            (BigInt(seedArray[6]) << 32n) | BigInt(seedArray[7])
-        ];
-    }
-
-    rotl(x, k) {
-        return ((x << BigInt(k)) | (x >> BigInt(64 - k))) & 0xFFFFFFFFFFFFFFFFn;
-    }
-
-    next() {
-        const result = this.rotl(this.state[1] * 5n, 7) * 9n;
-        const t = this.state[1] << 17n;
-
-        this.state[2] ^= this.state[0];
-        this.state[3] ^= this.state[1];
-        this.state[1] ^= this.state[2];
-        this.state[0] ^= this.state[3];
-        this.state[2] ^= t;
-        this.state[3] = this.rotl(this.state[3], 45);
-
-        return Number(result & 0xFFFFFFFFn) >>> 0; // return 32-bit unsigned
-    }
-
-    nextInt(min, max) {
-        const val = this.next();
-        return min + (val % (max - min));
-    }
-}
-
-// Convert string seed to 256-bit array using SHA-256
-async function seedToArray(seedStr) {
-    const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(seedStr));
-    const view = new DataView(hashBuffer);
-    const arr = [];
-    for (let i = 0; i < 32; i += 4) {
-        arr.push(view.getUint32(i, false));
-    }
-    return arr.concat(arr); // make 8 elements (256-bit)
-}
-
-/* ================= Encoding System ================= */
-class EncodingSystem {
-    constructor(id, type, matrices, permutation, inversePermutation) {
-        this.id = id;
-        this.type = type;
-        this.matrices = matrices;
-        this.permutation = permutation;
-        this.inversePermutation = inversePermutation;
-    }
-
-    lettersToNumbers(letters) {
-        return Array.from(letters).map(c => c.charCodeAt(0) - 97);
-    }
-
-    numbersToLetters(numbers) {
-        return numbers.map(n => String.fromCharCode(n + 97)).join('');
-    }
-
-    matrixVectorMultiplyMod26(matrix, vector) {
-        return matrix.map(row => row.reduce((acc, val, i) => acc + val * vector[i], 0) % 26);
-    }
-
-    applyPermutation(vector, perm) {
-        return perm.map(i => vector[i]);
-    }
-
-    generateSeed(generatorCode) {
-        if (!/^[a-z]{13}$/.test(generatorCode)) throw new Error("Generator code must be 13 letters");
-        const msg = this.lettersToNumbers(generatorCode);
-
-        if (this.type === "original") {
-            const parity = this.matrixVectorMultiplyMod26(this.matrices.P, msg);
-            const neg = parity.map(x => (-x + 26) % 26);
-            const codeword = this.applyPermutation(msg.concat(neg), this.permutation);
-            return this.numbersToLetters(codeword);
-        } else { // deviation
-            const parity1 = this.matrixVectorMultiplyMod26(this.matrices.P1, msg).map(x => (-x + 26) % 26);
-            const parity2 = this.matrixVectorMultiplyMod26(this.matrices.P2, msg).map(x => (-x + 26) % 26);
-            const codeword = this.applyPermutation(msg.concat(parity1, parity2), this.permutation);
-            return this.numbersToLetters(codeword);
+        
+        // rotl helper
+        function rotl(x, k) {
+            return ((x << k) | (x >>> (32 - k))) >>> 0;
         }
-    }
-
-    recoverGeneratorCode(seed) {
-        if (!/^[a-z]{55}$/.test(seed)) throw new Error("Seed must be 55 letters");
-        const codeword = this.applyPermutation(this.lettersToNumbers(seed), this.inversePermutation);
-        const msg = codeword.slice(0,13);
-        if (this.type==="original") {
-            const parity = codeword.slice(13,55);
-            const exp = this.matrixVectorMultiplyMod26(this.matrices.P, msg).map(x => (-x+26)%26);
-            if (!exp.every((v,i)=>v===parity[i])) throw new Error("Invalid seed for original mode");
-        } else {
-            const p1 = codeword.slice(13,28);
-            const p2 = codeword.slice(28,55);
-            const exp1 = this.matrixVectorMultiplyMod26(this.matrices.P1, msg).map(x => (-x+26)%26);
-            const exp2 = this.matrixVectorMultiplyMod26(this.matrices.P2, msg).map(x => (-x+26)%26);
-            if (!exp1.every((v,i)=>v===p1[i])) throw new Error("Deviation parity1 failed");
-            if (!exp2.every((v,i)=>v===p2[i])) throw new Error("Deviation parity2 failed");
+        
+        // xoshiro128+ PRNG (deterministic)
+        class SeededRandom {
+            constructor(seedStr) {
+                const seed = xmur3(seedStr || "");
+                // initialize state with four 32-bit values
+                this.state = [seed(), seed(), seed(), seed()];
+                // ensure not all zero
+                if (this.state[0] === 0 && this.state[1] === 0 && this.state[2] === 0 && this.state[3] === 0) {
+                    this.state = [0x9e3779b1, 0xf39cc060, 0x243f6a88, 0x85a308d3];
+                }
+            }
+            
+            // xoshiro128+ next (returns 32-bit unsigned)
+            _nextU32() {
+                const s0 = this.state[0];
+                const s1 = this.state[1];
+                const s2 = this.state[2];
+                const s3 = this.state[3];
+                
+                const result = (s0 + s3) >>> 0;
+                
+                const t = (s1 << 9) >>> 0;
+                
+                let newS2 = s2 ^ s0;
+                let newS3 = s3 ^ s1;
+                let newS1 = s1 ^ newS2;
+                let newS0 = s0 ^ newS3;
+                
+                newS2 = newS2 ^ t;
+                newS3 = rotl(newS3, 11);
+                
+                this.state[0] = newS0 >>> 0;
+                this.state[1] = newS1 >>> 0;
+                this.state[2] = newS2 >>> 0;
+                this.state[3] = newS3 >>> 0;
+                
+                return result >>> 0;
+            }
+            
+            // return float in [0,1)
+            next() {
+                // divide by 2^32 to get [0,1)
+                return this._nextU32() / 4294967296;
+            }
+            
+            // inclusive min, exclusive max
+            nextInt(min, max) {
+                if (max <= min) return min;
+                const r = Math.floor(this.next() * (max - min)) + min;
+                return r;
+            }
         }
-        return this.numbersToLetters(msg);
-    }
-}
-
-/* ================= Global Variables ================= */
-let allSystems = [];
-let currentMasterSeed = "default_secure_seed_xxx";
-let currentNumSystems = 10;
-
-/* ================= Utility Functions ================= */
-async function generateRandomMatrix(rows, cols, rng) {
-    const matrix = [];
-    for(let i=0;i<rows;i++){
-        const row=[];
-        for(let j=0;j<cols;j++){
-            row.push(rng.nextInt(0,26));
+        // -------------------------------------------------------------------------------
+        
+        class EncodingSystem {
+            constructor(id, type, matrices, permutation, inversePermutation) {
+                this.id = id;
+                this.type = type;
+                this.matrices = matrices;
+                this.permutation = permutation;
+                this.inversePermutation = inversePermutation;
+            }
+            
+            generateSeed(generatorCode) {
+                if (this.type === 'original') {
+                    return this.generateSeedOriginal(generatorCode);
+                } else {
+                    return this.generateSeedDeviation(generatorCode);
+                }
+            }
+            
+            recoverGeneratorCode(seed) {
+                if (this.type === 'original') {
+                    return this.recoverGeneratorCodeOriginal(seed);
+                } else {
+                    return this.recoverGeneratorCodeDeviation(seed);
+                }
+            }
+            
+            generateSeedOriginal(generatorCode) {
+                if (!/^[a-z]+$/.test(generatorCode) || generatorCode.length !== 13) {
+                    throw new Error("Generator code must be exactly 13 lowercase letters (a-z)");
+                }
+                
+                const message = this.lettersToNumbers(generatorCode);
+                const parity = this.matrixVectorMultiplyMod26(this.matrices.P, message);
+                const negatedParity = parity.map(x => (-x + 26) % 26);
+                const codeword = message.concat(negatedParity);
+                const permutedCodeword = this.applyPermutation(codeword, this.permutation);
+                return this.numbersToLetters(permutedCodeword);
+            }
+            
+            generateSeedDeviation(generatorCode) {
+                if (!/^[a-z]+$/.test(generatorCode) || generatorCode.length !== 13) {
+                    throw new Error("Generator code must be exactly 13 lowercase letters (a-z)");
+                }
+                
+                const message = this.lettersToNumbers(generatorCode);
+                
+                const parity1 = this.matrixVectorMultiplyMod26(this.matrices.P1, message);
+                const negatedParity1 = parity1.map(x => (-x + 26) % 26);
+                
+                const parity2 = this.matrixVectorMultiplyMod26(this.matrices.P2, message);
+                const negatedParity2 = parity2.map(x => (-x + 26) % 26);
+                
+                const codeword = message.concat(negatedParity1).concat(negatedParity2);
+                const permutedCodeword = this.applyPermutation(codeword, this.permutation);
+                return this.numbersToLetters(permutedCodeword);
+            }
+            
+            recoverGeneratorCodeOriginal(seed) {
+                if (!/^[a-z]+$/.test(seed) || seed.length !== 55) {
+                    throw new Error("Seed must be exactly 55 lowercase letters (a-z)");
+                }
+                
+                const permutedCodeword = this.lettersToNumbers(seed);
+                const codeword = this.applyPermutation(permutedCodeword, this.inversePermutation);
+                
+                const message = codeword.slice(0, 13);
+                const parity = codeword.slice(13, 55);
+                
+                const expectedParity = this.matrixVectorMultiplyMod26(this.matrices.P, message);
+                const negatedExpectedParity = expectedParity.map(x => (-x + 26) % 26);
+                
+                for (let i = 0; i < 42; i++) {
+                    if (parity[i] !== negatedExpectedParity[i]) {
+                        throw new Error("Invalid seed for original mode: parity check failed");
+                    }
+                }
+                
+                return this.numbersToLetters(message);
+            }
+            
+            recoverGeneratorCodeDeviation(seed) {
+                if (!/^[a-z]+$/.test(seed) || seed.length !== 55) {
+                    throw new Error("Seed must be exactly 55 lowercase letters (a-z)");
+                }
+                
+                const permutedCodeword = this.lettersToNumbers(seed);
+                const codeword = this.applyPermutation(permutedCodeword, this.inversePermutation);
+                
+                const message = codeword.slice(0, 13);
+                const parity1 = codeword.slice(13, 28);
+                const parity2 = codeword.slice(28, 55);
+                
+                const expectedParity1 = this.matrixVectorMultiplyMod26(this.matrices.P1, message);
+                const negatedExpectedParity1 = expectedParity1.map(x => (-x + 26) % 26);
+                
+                for (let i = 0; i < 15; i++) {
+                    if (parity1[i] !== negatedExpectedParity1[i]) {
+                        throw new Error("Invalid seed for deviation mode: first parity check failed");
+                    }
+                }
+                
+                const expectedParity2 = this.matrixVectorMultiplyMod26(this.matrices.P2, message);
+                const negatedExpectedParity2 = expectedParity2.map(x => (-x + 26) % 26);
+                
+                for (let i = 0; i < 27; i++) {
+                    if (parity2[i] !== negatedExpectedParity2[i]) {
+                        throw new Error("Invalid seed for deviation mode: second parity check failed");
+                    }
+                }
+                
+                return this.numbersToLetters(message);
+            }
+            
+            lettersToNumbers(letters) {
+                const numbers = [];
+                for (let i = 0; i < letters.length; i++) {
+                    numbers.push(letters.charCodeAt(i) - 97);
+                }
+                return numbers;
+            }
+            
+            numbersToLetters(numbers) {
+                let letters = '';
+                for (let i = 0; i < numbers.length; i++) {
+                    letters += String.fromCharCode(numbers[i] + 97);
+                }
+                return letters;
+            }
+            
+            matrixVectorMultiplyMod26(matrix, vector) {
+                const result = [];
+                for (let i = 0; i < matrix.length; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < matrix[i].length; j++) {
+                        sum += matrix[i][j] * vector[j];
+                    }
+                    result.push(sum % 26);
+                }
+                return result;
+            }
+            
+            applyPermutation(vector, perm) {
+                const result = new Array(vector.length);
+                for (let i = 0; i < perm.length; i++) {
+                    result[i] = vector[perm[i]];
+                }
+                return result;
+            }
         }
-        matrix.push(row);
-    }
-    return matrix;
-}
-
-async function generateRandomPermutation(n, rng){
-    const perm = Array.from({length:n},(_,i)=>i);
-    for(let i=n-1;i>0;i--){
-        const j = rng.nextInt(0,i+1);
-        [perm[i],perm[j]]=[perm[j],perm[i]];
-    }
-    return perm;
-}
-
-function generateInversePermutation(perm){
-    const inv = new Array(perm.length);
-    perm.forEach((v,i)=>inv[v]=i);
-    return inv;
-}
-
-async function createOriginalSystem(id, seedStr){
-    const seedArray = await seedToArray(seedStr+"-original-"+id);
-    const rng = new Xoshiro256StarStar(seedArray);
-    const matrixP = await generateRandomMatrix(42,13,rng);
-    const permutation = await generateRandomPermutation(55,rng);
-    const inversePermutation = generateInversePermutation(permutation);
-    return new EncodingSystem(id,"original",{P:matrixP},permutation,inversePermutation);
-}
-
-async function createDeviationSystem(id, seedStr){
-    const seedArray = await seedToArray(seedStr+"-deviation-"+id);
-    const rng = new Xoshiro256StarStar(seedArray);
-    const P1 = await generateRandomMatrix(15,13,rng);
-    const P2 = await generateRandomMatrix(27,13,rng);
-    const permutation = await generateRandomPermutation(55,rng);
-    const inversePermutation = generateInversePermutation(permutation);
-    return new EncodingSystem(id,"deviation",{P1,P2},permutation,inversePermutation);
-}
-
-/* ================= Tab Functions ================= */
-function switchTab(tabName){
-    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById(tabName+'-tab').classList.add('active');
-    event.target.classList.add('active');
-}
-
-function getSelectedMode(prefix){
-    return Array.from(document.getElementsByName(prefix+'Mode')).find(r=>r.checked)?.value || 'original';
-}
-
-/* ================= Main Functions ================= */
-async function generateSystems(){
-    let masterSeed = document.getElementById('masterSeed').value.trim() || currentMasterSeed;
-    let numSystems = parseInt(document.getElementById('numSystems').value) || 10;
-    currentMasterSeed = masterSeed;
-    currentNumSystems = numSystems;
-    allSystems=[];
-
-    const original = await createOriginalSystem(1, masterSeed);
-    allSystems.push(original);
-    for(let i=2;i<=numSystems+1;i++){
-        const dev = await createDeviationSystem(i, masterSeed);
-        allSystems.push(dev);
-    }
-
-    document.getElementById('systemStatus').innerHTML=`<div class="success"><strong>Systems Generated!</strong> Total: ${allSystems.length}</div>`;
-}
-
-async function useDefaultSystems(){
-    document.getElementById('masterSeed').value=currentMasterSeed;
-    document.getElementById('numSystems').value=currentNumSystems;
-    await generateSystems();
-}
-
-function generateRandomGeneratorCode(){
-    return Array.from({length:13},()=>String.fromCharCode(97+Math.floor(Math.random()*26))).join('');
-}
-
-function copyToClipboard(text){
-    const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); document.body.removeChild(ta);
-    const btn = event.target; const txt=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=txt,2000);
-}
-
-/* ================= Event Listeners ================= */
-window.onload = async function(){
-    await useDefaultSystems();
-
-    document.getElementsByName('recoverMode').forEach(r=>{
-        r.addEventListener('change',()=>{
-            document.getElementById('specificSystemInput').style.display=(r.value==='specific')?'block':'none';
-        });
-    });
-    document.getElementsByName('generateMode').forEach(r=>{
-        r.addEventListener('change',()=>{
-            document.getElementById('generateSpecificSystemInput').style.display=(r.value==='specific')?'block':'none';
-        });
-    });
-};
-</script>
+        
+        window.onload = function() {
+            useDefaultSystems();
+            setupEventListeners();
+        };
+        
+        function setupEventListeners() {
+            const recoverModeRadios = document.getElementsByName('recoverMode');
+            const specificSystemInput = document.getElementById('specificSystemInput');
+            
+            for (let radio of recoverModeRadios) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'specific') {
+                        specificSystemInput.style.display = 'block';
+                    } else {
+                        specificSystemInput.style.display = 'none';
+                    }
+                });
+            }
+            
+            const generateModeRadios = document.getElementsByName('generateMode');
+            const generateSpecificSystemInput = document.getElementById('generateSpecificSystemInput');
+            
+            for (let radio of generateModeRadios) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'specific') {
+                        generateSpecificSystemInput.style.display = 'block';
+                    } else {
+                        generateSpecificSystemInput.style.display = 'none';
+                    }
+                });
+            }
+        }
+        
+        function generateSystems() {
+            let masterSeed = document.getElementById('masterSeed').value.trim();
+            const numSystems = parseInt(document.getElementById('numSystems').value) || 10;
+            
+            // Use default master seed if none provided
+            let usedDefault = false;
+            if (!masterSeed) {
+                masterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
+                usedDefault = true;
+            }
+            
+            currentMasterSeed = masterSeed;
+            currentNumSystems = numSystems;
+            
+            allSystems = [];
+            
+            const originalSystem = createOriginalSystem(1, masterSeed);
+            allSystems.push(originalSystem);
+            
+            for (let i = 2; i <= numSystems + 1; i++) {
+                const deviationSystem = createDeviationSystem(i, masterSeed + "-deviation-" + i);
+                allSystems.push(deviationSystem);
+            }
+            
+            // Update max values for system index inputs
+            document.getElementById('specificSystemIndex').max = allSystems.length;
+            document.getElementById('generateSpecificSystemIndex').max = allSystems.length;
+            
+            document.getElementById('systemStatus').innerHTML = `
+                <div class="success">
+                    <strong>Systems Generated Successfully!</strong><br>
+                    Total Systems: ${allSystems.length}<br>
+                    Original System: 1<br>
+                    Deviation Systems: ${numSystems}<br>
+                    Master Seed: ${masterSeed}
+                </div>
+                <div class="info">
+                    <strong>Important:</strong> Save this master seed! You'll need it to reproduce these same systems in future sessions.
+                </div>
+                ${usedDefault ? '<div class="warning">Note: Default master seed was used because none was provided.</div>' : ''}
+            `;
+            
+            console.log(`Generated ${allSystems.length} systems with master seed: ${masterSeed}`);
+        }
+        
+        function useDefaultSystems() {
+            currentMasterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
+            currentNumSystems = 10;
+            
+            allSystems = [];
+            
+            const originalSystem = createOriginalSystem(1, currentMasterSeed);
+            allSystems.push(originalSystem);
+            
+            for (let i = 2; i <= currentNumSystems + 1; i++) {
+                const deviationSystem = createDeviationSystem(i, currentMasterSeed + "-deviation-" + i);
+                allSystems.push(deviationSystem);
+            }
+            
+            // Update max values for system index inputs
+            document.getElementById('specificSystemIndex').max = allSystems.length;
+            document.getElementById('generateSpecificSystemIndex').max = allSystems.length;
+            
+            document.getElementById('systemStatus').innerHTML = `
+                <div class="success">
+                    <strong>Default Systems Generated!</strong><br>
+                    Total Systems: ${allSystems.length}<br>
+                    Original System: 1<br>
+                    Deviation Systems: ${currentNumSystems}<br>
+                    Master Seed: ${currentMasterSeed}
+                </div>
+                <div class="info">
+                    <strong>Note:</strong> Using default master seed. For your own reproducible systems, enter a custom master seed.
+                </div>
+            `;
+            
+            console.log(`Generated ${allSystems.length} default systems with master seed: ${currentMasterSeed}`);
+        }
+        
+        function createOriginalSystem(id, seed) {
+            const rng = new SeededRandom(seed + "-original-" + id);
+            const matrixP = generateRandomMatrix(42, 13, rng);
+            const permutation = generateRandomPermutation(55, rng);
+            const inversePermutation = generateInversePermutation(permutation);
+            
+            return new EncodingSystem(
+                id,
+                'original',
+                { P: matrixP },
+                permutation,
+                inversePermutation
+            );
+        }
+        
+        function createDeviationSystem(id, seed) {
+            const rng = new SeededRandom(seed);
+            const matrixP1 = generateRandomMatrix(15, 13, rng);
+            const matrixP2 = generateRandomMatrix(27, 13, rng);
+            const permutation = generateRandomPermutation(55, rng);
+            const inversePermutation = generateInversePermutation(permutation);
+            
+            return new EncodingSystem(
+                id,
+                'deviation',
+                { P1: matrixP1, P2: matrixP2 },
+                permutation,
+                inversePermutation
+            );
+        }
+        
+        function generateRandomMatrix(rows, cols, rng) {
+            const matrix = [];
+            for (let i = 0; i < rows; i++) {
+                const row = [];
+                for (let j = 0; j < cols; j++) {
+                    row.push(rng.nextInt(0, 26));
+                }
+                matrix.push(row);
+            }
+            return matrix;
+        }
+        
+        function generateRandomPermutation(n, rng) {
+            const perm = Array.from({length: n}, (_, i) => i);
+            
+            for (let i = n - 1; i > 0; i--) {
+                const j = rng.nextInt(0, i + 1);
+                [perm[i], perm[j]] = [perm[j], perm[i]];
+            }
+            
+            return perm;
+        }
+        
+        function generateInversePermutation(perm) {
+            const inverse = new Array(perm.length);
+            for (let i = 0; i < perm.length; i++) {
+                inverse[perm[i]] = i;
+            }
+            return inverse;
+        }
+        
+        function switchTab(tabName) {
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        function getSelectedMode(prefix) {
+            const radios = document.getElementsByName(prefix + 'Mode');
+            for (let radio of radios) {
+                if (radio.checked) {
+                    return radio.value;
+                }
+            }
+            return 'original';
+        }
+        
+        function generateSeed() {
+            const generatorCode = document.getElementById('generatorCodeInput').value.trim();
+            const mode = getSelectedMode('generate');
+            const resultDiv = document.getElementById('generateResult');
+            
+            if (allSystems.length === 0) {
+                resultDiv.innerHTML = '<div class="error">Please generate systems first.</div>';
+                return;
+            }
+            
+            try {
+                let seed;
+                let systemUsed;
+                
+                if (mode === 'original') {
+                    systemUsed = allSystems[0];
+                    seed = systemUsed.generateSeed(generatorCode);
+                } else if (mode === 'deviation') {
+                    systemUsed = allSystems[1];
+                    seed = systemUsed.generateSeed(generatorCode);
+                } else if (mode === 'random') {
+                    const randomIndex = Math.floor(Math.random() * allSystems.length);
+                    systemUsed = allSystems[randomIndex];
+                    seed = systemUsed.generateSeed(generatorCode);
+                } else if (mode === 'specific') {
+                    const systemIndex = parseInt(document.getElementById('generateSpecificSystemIndex').value) - 1;
+                    if (systemIndex < 0 || systemIndex >= allSystems.length) {
+                        throw new Error(`Invalid system index. Must be between 1 and ${allSystems.length}`);
+                    }
+                    systemUsed = allSystems[systemIndex];
+                    seed = systemUsed.generateSeed(generatorCode);
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>Seed Generated Successfully!</strong>
+                    </div>
+                    <div class="seed-display">
+                        <strong>Generator Code:</strong> ${generatorCode}<br>
+                        <strong>Generated Seed:</strong> ${seed}
+                    </div>
+                    <div class="info">
+                        <strong>System Used:</strong> System ${systemUsed.id} (${systemUsed.type})<br>
+                        <strong>System Index:</strong> ${allSystems.indexOf(systemUsed) + 1}<br>
+                        <strong>Master Seed:</strong> ${currentMasterSeed}
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard('${seed}')">Copy Seed</button>
+                    <button class="copy-button" onclick="copyToClipboard('${generatorCode}')">Copy Generator Code</button>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function recoverGeneratorCode() {
+            const seed = document.getElementById('seedInput').value.trim();
+            const mode = getSelectedMode('recover');
+            const resultDiv = document.getElementById('recoverResult');
+            
+            if (allSystems.length === 0) {
+                resultDiv.innerHTML = '<div class="error">Please generate systems first.</div>';
+                return;
+            }
+            
+            try {
+                let generatorCode;
+                let attempts = [];
+                
+                if (mode === 'sequential') {
+                    for (let i = 0; i < allSystems.length; i++) {
+                        const system = allSystems[i];
+                        try {
+                            generatorCode = system.recoverGeneratorCode(seed);
+                            attempts.push(`System ${system.id}: SUCCESS`);
+                            
+                            resultDiv.innerHTML = `
+                                <div class="success">
+                                    <strong>Generator Code Recovered Successfully!</strong>
+                                </div>
+                                <div class="seed-display">
+                                    <strong>Seed:</strong> ${seed}<br>
+                                    <strong>Recovered Generator Code:</strong> ${generatorCode}
+                                </div>
+                                <div class="info">
+                                    <strong>Successful System:</strong> System ${system.id} (${system.type})<br>
+                                    <strong>Attempts:</strong> ${i + 1} of ${allSystems.length}<br>
+                                    <strong>Master Seed:</strong> ${currentMasterSeed}
+                                </div>
+                                <div class="attempt-log">
+                                    <strong>Recovery Log:</strong><br>
+                                    ${attempts.join('<br>')}
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${((i + 1) / allSystems.length) * 100}%"></div>
+                                </div>
+                                <button class="copy-button" onclick="copyToClipboard('${generatorCode}')">Copy Generator Code</button>
+                                <button class="copy-button" onclick="copyToClipboard('${seed}')">Copy Seed</button>
+                            `;
+                            return;
+                        } catch (e) {
+                            attempts.push(`System ${system.id}: ${e.message}`);
+                        }
+                    }
+                    
+                    throw new Error(`All ${allSystems.length} systems failed. Last attempt: ${attempts[attempts.length - 1]}`);
+                    
+                } else if (mode === 'original') {
+                    const system = allSystems[0];
+                    generatorCode = system.recoverGeneratorCode(seed);
+                    attempts.push(`System ${system.id}: SUCCESS`);
+                    
+                } else if (mode === 'specific') {
+                    const systemIndex = parseInt(document.getElementById('specificSystemIndex').value) - 1;
+                    if (systemIndex < 0 || systemIndex >= allSystems.length) {
+                        throw new Error(`Invalid system index. Must be between 1 and ${allSystems.length}`);
+                    }
+                    
+                    const system = allSystems[systemIndex];
+                    generatorCode = system.recoverGeneratorCode(seed);
+                    attempts.push(`System ${system.id}: SUCCESS`);
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>Generator Code Recovered Successfully!</strong>
+                    </div>
+                    <div class="seed-display">
+                        <strong>Seed:</strong> ${seed}<br>
+                        <strong>Recovered Generator Code:</strong> ${generatorCode}
+                    </div>
+                    <div class="attempt-log">
+                        <strong>Recovery Log:</strong><br>
+                        ${attempts.join('<br>')}
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard('${generatorCode}')">Copy Generator Code</button>
+                    <button class="copy-button" onclick="copyToClipboard('${seed}')">Copy Seed</button>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function runBatchTest() {
+            const resultDiv = document.getElementById('batchResult');
+            
+            if (allSystems.length === 0) {
+                resultDiv.innerHTML = '<div class="error">Please generate systems first.</div>';
+                return;
+            }
+            
+            const testCases = [];
+            for (let i = 0; i < 5; i++) {
+                const generatorCode = generateRandomGeneratorCode();
+                const system = allSystems[Math.floor(Math.random() * allSystems.length)];
+                const seed = system.generateSeed(generatorCode);
+                testCases.push({
+                    generatorCode,
+                    seed,
+                    expectedSystemId: system.id
+                });
+            }
+            
+            let results = [];
+            let totalAttempts = 0;
+            let successfulAttempts = 0;
+            
+            for (let testCase of testCases) {
+                let recovered = false;
+                let attempts = 0;
+                
+                for (let system of allSystems) {
+                    attempts++;
+                    totalAttempts++;
+                    
+                    try {
+                        const recoveredCode = system.recoverGeneratorCode(testCase.seed);
+                        if (recoveredCode === testCase.generatorCode) {
+                            recovered = true;
+                            successfulAttempts++;
+                            results.push({
+                                generatorCode: testCase.generatorCode,
+                                expectedSystem: testCase.expectedSystemId,
+                                actualSystem: system.id,
+                                attempts: attempts,
+                                success: true
+                            });
+                            break;
+                        }
+                    } catch (e) {
+                    }
+                }
+                
+                if (!recovered) {
+                    results.push({
+                        generatorCode: testCase.generatorCode,
+                        expectedSystem: testCase.expectedSystemId,
+                        actualSystem: 'None',
+                        attempts: attempts,
+                        success: false
+                    });
+                }
+            }
+            
+            const successRate = (successfulAttempts / totalAttempts * 100).toFixed(2);
+            
+            let resultsHTML = `
+                <div class="info">
+                    <strong>Batch Test Results:</strong><br>
+                    Total Test Cases: ${testCases.length}<br>
+                    Successful Recoveries: ${successfulAttempts}<br>
+                    Total Attempts: ${totalAttempts}<br>
+                    Success Rate: ${successRate}%<br>
+                    Master Seed: ${currentMasterSeed}
+                </div>
+                <div class="attempt-log">
+                    <strong>Detailed Results:</strong><br>
+            `;
+            
+            for (let result of results) {
+                const statusClass = result.success ? 'success' : 'error';
+                const statusText = result.success ? 'SUCCESS' : 'FAILED';
+                
+                resultsHTML += `
+                    <div class="${statusClass}">
+                        Generator: ${result.generatorCode}<br>
+                        Expected System: ${result.expectedSystem}<br>
+                        Actual System: ${result.actualSystem}<br>
+                        Attempts: ${result.attempts}<br>
+                        Status: ${statusText}
+                    </div>
+                `;
+            }
+            
+            resultsHTML += '</div>';
+            resultDiv.innerHTML = resultsHTML;
+        }
+        
+        function generateRandomGeneratorCode() {
+            let code = '';
+            for (let i = 0; i < 13; i++) {
+                code += String.fromCharCode(Math.floor(Math.random() * 26) + 97);
+            }
+            return code;
+        }
+        
+        function clearBatchResults() {
+            document.getElementById('batchResult').innerHTML = '';
+        }
+        
+        function copyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            textArea.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+                button.textContent = originalText;
+            }, 2000);
+        }
+    </script>
 </body>
 </html>
