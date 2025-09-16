@@ -123,30 +123,79 @@
         let currentNumSystems = 10;
         let currentMasterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
         
+        // ---------- Strong deterministic RNG: xoshiro128+ seeded from string ----------
+        // xmur3: string -> 32-bit seed generator (standard small seeder)
+        function xmur3(str) {
+            let h = 1779033703 ^ str.length;
+            for (let i = 0; i < str.length; i++) {
+                h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+                h = (h << 13) | (h >>> 19);
+            }
+            return function() {
+                h = Math.imul(h ^ (h >>> 16), 2246822507);
+                h = Math.imul(h ^ (h >>> 13), 3266489909);
+                return (h ^= h >>> 16) >>> 0;
+            };
+        }
+        
+        // rotl helper
+        function rotl(x, k) {
+            return ((x << k) | (x >>> (32 - k))) >>> 0;
+        }
+        
+        // xoshiro128+ PRNG (deterministic)
         class SeededRandom {
-            constructor(seed) {
-                this.seed = this.hashCode(seed);
-            }
-            
-            hashCode(str) {
-                let hash = 0;
-                for (let i = 0; i < str.length; i++) {
-                    const char = str.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash;
+            constructor(seedStr) {
+                const seed = xmur3(seedStr || "");
+                // initialize state with four 32-bit values
+                this.state = [seed(), seed(), seed(), seed()];
+                // ensure not all zero
+                if (this.state[0] === 0 && this.state[1] === 0 && this.state[2] === 0 && this.state[3] === 0) {
+                    this.state = [0x9e3779b1, 0xf39cc060, 0x243f6a88, 0x85a308d3];
                 }
-                return Math.abs(hash);
             }
             
+            // xoshiro128+ next (returns 32-bit unsigned)
+            _nextU32() {
+                const s0 = this.state[0];
+                const s1 = this.state[1];
+                const s2 = this.state[2];
+                const s3 = this.state[3];
+                
+                const result = (s0 + s3) >>> 0;
+                
+                const t = (s1 << 9) >>> 0;
+                
+                let newS2 = s2 ^ s0;
+                let newS3 = s3 ^ s1;
+                let newS1 = s1 ^ newS2;
+                let newS0 = s0 ^ newS3;
+                
+                newS2 = newS2 ^ t;
+                newS3 = rotl(newS3, 11);
+                
+                this.state[0] = newS0 >>> 0;
+                this.state[1] = newS1 >>> 0;
+                this.state[2] = newS2 >>> 0;
+                this.state[3] = newS3 >>> 0;
+                
+                return result >>> 0;
+            }
+            
+            // return float in [0,1)
             next() {
-                this.seed = (this.seed * 9301 + 49297) % 233280;
-                return this.seed / 233280;
+                // divide by 2^32 to get [0,1)
+                return this._nextU32() / 4294967296;
             }
             
+            // inclusive min, exclusive max
             nextInt(min, max) {
-                return Math.floor(this.next() * (max - min)) + min;
+                if (max <= min) return min;
+                const r = Math.floor(this.next() * (max - min)) + min;
+                return r;
             }
         }
+        // -------------------------------------------------------------------------------
         
         class EncodingSystem {
             constructor(id, type, matrices, permutation, inversePermutation) {
