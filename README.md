@@ -145,34 +145,8 @@ The deviation systems add entropy through the uncertainty of which system was us
 
 ### Seeded Random Number Generation
 
-The system uses a seeded random number generator to ensure deterministic generation of encoding systems:
+The system uses a HMAC-SHA random number generator to ensure deterministic-CRYPTOGRAPHICALLY SECURE generation of encoding systems:
 
-```javascript
-class SeededRandom {
-    constructor(seed) {
-        this.seed = this.hashCode(seed);
-    }
-    
-    hashCode(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return Math.abs(hash);
-    }
-    
-    next() {
-        this.seed = (this.seed * 9301 + 49297) % 233280;
-        return this.seed / 233280;
-    }
-    
-    nextInt(min, max) {
-        return Math.floor(this.next() * (max - min)) + min;
-    }
-}
-```
 
 ### Matrix Generation
 
