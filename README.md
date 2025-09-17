@@ -43,7 +43,7 @@ Example: `my-custom-secret-key-2023` or `this-is-a-very-long-and-secure-master-s
 A 13-character string containing only lowercase letters (a-z). This code is transformed into a seed by the encoding systems. The generator code can be simple and memorable, such as repeated characters or meaningful patterns.
 
 Examples:
-- `zzzzzzzzzzzzz`
+- `zzzzzzzzzzzzz`(not recommended)
 - `abcdefghijklm`
 - `mynamepattern`
 
