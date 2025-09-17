@@ -4,7 +4,7 @@ A mnemonic-like tool for qubic (can be adopted to other coins) I recommend runni
 
 🔴🔴🔴🔴please dont use aaaaaa's as a generator code , its turned off 🔴🔴🔴🔴
 
-
+updated rng to xoshiro rng , see (better rng commit for clarification)
 # qib13 Documentation
 
 ## Overview
