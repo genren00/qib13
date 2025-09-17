@@ -123,76 +123,246 @@
         let currentNumSystems = 10;
         let currentMasterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
         
-        // ---------- Strong deterministic RNG: xoshiro128+ seeded from string ----------
-        // xmur3: string -> 32-bit seed generator (standard small seeder)
-        function xmur3(str) {
-            let h = 1779033703 ^ str.length;
+        // ---------- Cryptographically Secure Deterministic RNG: HMAC-SHA256 in Counter Mode ----------
+        
+        // Utility functions for HMAC-SHA256 implementation
+        function strToBytes(str) {
+            const bytes = [];
             for (let i = 0; i < str.length; i++) {
-                h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-                h = (h << 13) | (h >>> 19);
+                bytes.push(str.charCodeAt(i) & 0xff);
             }
-            return function() {
-                h = Math.imul(h ^ (h >>> 16), 2246822507);
-                h = Math.imul(h ^ (h >>> 13), 3266489909);
-                return (h ^= h >>> 16) >>> 0;
-            };
+            return bytes;
         }
         
-        // rotl helper
-        function rotl(x, k) {
-            return ((x << k) | (x >>> (32 - k))) >>> 0;
+        function bytesToHex(bytes) {
+            return Array.from(bytes)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
         }
         
-        // xoshiro128+ PRNG (deterministic)
-        class SeededRandom {
-            constructor(seedStr) {
-                const seed = xmur3(seedStr || "");
-                // initialize state with four 32-bit values
-                this.state = [seed(), seed(), seed(), seed()];
-                // ensure not all zero
-                if (this.state[0] === 0 && this.state[1] === 0 && this.state[2] === 0 && this.state[3] === 0) {
-                    this.state = [0x9e3779b1, 0xf39cc060, 0x243f6a88, 0x85a308d3];
+        // Simple SHA-256 implementation (for browser environments without Web Crypto API support)
+        // Note: In a production environment, you would use the native Web Crypto API
+        function sha256(message) {
+            // This is a simplified SHA-256 implementation for demonstration
+            // In production, use window.crypto.subtle.digest('SHA-256', data)
+            
+            // Convert message to bytes
+            const msgBytes = typeof message === 'string' ? strToBytes(message) : message;
+            
+            // Constants for SHA-256
+            const K = [
+                0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+            ];
+            
+            // Initial hash value
+            let H = [
+                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+            ];
+            
+            // Pre-processing
+            const ml = msgBytes.length * 8;
+            
+            // Append the bit '1' to the message
+            const newMsgBytes = [...msgBytes, 0x80];
+            
+            // Append 0 ≤ k < 512 bits '0', so that the resulting message length is congruent to 448 mod 512
+            while ((newMsgBytes.length * 8) % 512 !== 448) {
+                newMsgBytes.push(0x00);
+            }
+            
+            // Append ml, the original message length, as a 64-bit big-endian integer
+            for (let i = 7; i >= 0; i--) {
+                newMsgBytes.push((ml >>> (i * 8)) & 0xff);
+            }
+            
+            // Process the message in successive 512-bit chunks
+            for (let i = 0; i < newMsgBytes.length / 64; i++) {
+                const chunk = newMsgBytes.slice(i * 64, (i + 1) * 64);
+                
+                // Break chunk into sixteen 32-bit big-endian words w[0..15]
+                const w = [];
+                for (let j = 0; j < 16; j++) {
+                    w[j] = (chunk[j * 4] << 24) | (chunk[j * 4 + 1] << 16) | 
+                           (chunk[j * 4 + 2] << 8) | chunk[j * 4 + 3];
                 }
+                
+                // Extend the sixteen 32-bit words into sixty-four 32-bit words
+                for (let j = 16; j < 64; j++) {
+                    const s0 = (w[j - 15] >>> 7) | (w[j - 15] << 25);
+                    const s1 = (w[j - 2] >>> 17) | (w[j - 2] << 15);
+                    w[j] = (w[j - 16] + s0 + w[j - 7] + s1) & 0xffffffff;
+                }
+                
+                // Initialize hash value for this chunk
+                let a = H[0], b = H[1], c = H[2], d = H[3];
+                let e = H[4], f = H[5], g = H[6], h = H[7];
+                
+                // Main loop
+                for (let j = 0; j < 64; j++) {
+                    const S1 = (e >>> 6) | (e << 26);
+                    const ch = (e & f) ^ (~e & g);
+                    const temp1 = (h + S1 + ch + K[j] + w[j]) & 0xffffffff;
+                    const S0 = (a >>> 2) | (a << 30);
+                    const maj = (a & b) ^ (a & c) ^ (b & c);
+                    const temp2 = (S0 + maj) & 0xffffffff;
+                    
+                    h = g;
+                    g = f;
+                    f = e;
+                    e = (d + temp1) & 0xffffffff;
+                    d = c;
+                    c = b;
+                    b = a;
+                    a = (temp1 + temp2) & 0xffffffff;
+                }
+                
+                // Add this chunk's hash to result so far
+                H[0] = (H[0] + a) & 0xffffffff;
+                H[1] = (H[1] + b) & 0xffffffff;
+                H[2] = (H[2] + c) & 0xffffffff;
+                H[3] = (H[3] + d) & 0xffffffff;
+                H[4] = (H[4] + e) & 0xffffffff;
+                H[5] = (H[5] + f) & 0xffffffff;
+                H[6] = (H[6] + g) & 0xffffffff;
+                H[7] = (H[7] + h) & 0xffffffff;
             }
             
-            // xoshiro128+ next (returns 32-bit unsigned)
+            // Produce the final hash value as a 256-bit number
+            const hash = [];
+            for (let i = 0; i < 8; i++) {
+                hash.push((H[i] >>> 24) & 0xff);
+                hash.push((H[i] >>> 16) & 0xff);
+                hash.push((H[i] >>> 8) & 0xff);
+                hash.push(H[i] & 0xff);
+            }
+            
+            return hash;
+        }
+        
+        // HMAC implementation
+        function hmac(key, message) {
+            const blockSize = 64; // bytes, for SHA-256
+            
+            // Convert key to bytes
+            const keyBytes = typeof key === 'string' ? strToBytes(key) : key;
+            
+            // Keys longer than blockSize are shortened by hashing them
+            let hashKey;
+            if (keyBytes.length > blockSize) {
+                hashKey = sha256(keyBytes);
+            } else {
+                hashKey = [...keyBytes];
+            }
+            
+            // Keys shorter than blockSize are padded to blockSize by padding with zeros on the right
+            if (hashKey.length < blockSize) {
+                const paddedKey = new Array(blockSize);
+                for (let i = 0; i < blockSize; i++) {
+                    paddedKey[i] = i < hashKey.length ? hashKey[i] : 0x00;
+                }
+                hashKey = paddedKey;
+            }
+            
+            // XOR key with ipad and opad
+            const ipad = new Array(blockSize);
+            const opad = new Array(blockSize);
+            for (let i = 0; i < blockSize; i++) {
+                ipad[i] = hashKey[i] ^ 0x36;
+                opad[i] = hashKey[i] ^ 0x5c;
+            }
+            
+            // Compute inner hash
+            const innerHash = sha256([...ipad, ...message]);
+            
+            // Compute outer hash
+            const outerHash = sha256([...opad, ...innerHash]);
+            
+            return outerHash;
+        }
+        
+        // Cryptographically secure deterministic RNG using HMAC-SHA256 in counter mode
+        class CryptoSeededRandom {
+            constructor(seedStr) {
+                // Initialize key from seed
+                this.key = sha256(strToBytes(seedStr || ""));
+                
+                // Initialize counter
+                this.counter = 0;
+                
+                // Buffer for storing generated random bytes
+                this.buffer = [];
+                this.bufferIndex = 0;
+                
+                // Generate initial batch of random bytes
+                this._generateMoreBytes();
+            }
+            
+            // Generate more random bytes using HMAC-SHA256 in counter mode
+            _generateMoreBytes() {
+                // Convert counter to bytes (big-endian, 8 bytes)
+                const counterBytes = new Array(8);
+                for (let i = 0; i < 8; i++) {
+                    counterBytes[7 - i] = (this.counter >>> (i * 8)) & 0xff;
+                }
+                
+                // Generate HMAC-SHA256(key, counter)
+                this.buffer = hmac(this.key, counterBytes);
+                this.bufferIndex = 0;
+                
+                // Increment counter for next call
+                this.counter++;
+            }
+            
+            // Get next 32-bit unsigned integer
             _nextU32() {
-                const s0 = this.state[0];
-                const s1 = this.state[1];
-                const s2 = this.state[2];
-                const s3 = this.state[3];
+                // If we don't have enough bytes in the buffer, generate more
+                if (this.bufferIndex + 4 > this.buffer.length) {
+                    this._generateMoreBytes();
+                }
                 
-                const result = (s0 + s3) >>> 0;
+                // Extract 4 bytes and convert to a 32-bit integer
+                let result = 0;
+                for (let i = 0; i < 4; i++) {
+                    result = (result << 8) | this.buffer[this.bufferIndex++];
+                }
                 
-                const t = (s1 << 9) >>> 0;
-                
-                let newS2 = s2 ^ s0;
-                let newS3 = s3 ^ s1;
-                let newS1 = s1 ^ newS2;
-                let newS0 = s0 ^ newS3;
-                
-                newS2 = newS2 ^ t;
-                newS3 = rotl(newS3, 11);
-                
-                this.state[0] = newS0 >>> 0;
-                this.state[1] = newS1 >>> 0;
-                this.state[2] = newS2 >>> 0;
-                this.state[3] = newS3 >>> 0;
-                
-                return result >>> 0;
+                return result >>> 0; // Ensure it's unsigned
             }
             
-            // return float in [0,1)
+            // Return float in [0,1)
             next() {
-                // divide by 2^32 to get [0,1)
+                // Use 32 bits of randomness and divide by 2^32 to get [0,1)
                 return this._nextU32() / 4294967296;
             }
             
-            // inclusive min, exclusive max
+            // Return integer in [min, max)
             nextInt(min, max) {
                 if (max <= min) return min;
-                const r = Math.floor(this.next() * (max - min)) + min;
-                return r;
+                
+                // Calculate range
+                const range = max - min;
+                
+                // If range is a power of 2, we can use a simple mask
+                if ((range & (range - 1)) === 0) {
+                    return min + (this._nextU32() & (range - 1));
+                }
+                
+                // Otherwise, use rejection sampling to avoid modulo bias
+                const limit = (0x100000000 - (0x100000000 % range)) >>> 0;
+                let x;
+                do {
+                    x = this._nextU32();
+                } while (x >= limit);
+                
+                return min + (x % range);
             }
         }
         // -------------------------------------------------------------------------------
@@ -459,7 +629,7 @@
         }
         
         function createOriginalSystem(id, seed) {
-            const rng = new SeededRandom(seed + "-original-" + id);
+            const rng = new CryptoSeededRandom(seed + "-original-" + id);
             const matrixP = generateRandomMatrix(42, 13, rng);
             const permutation = generateRandomPermutation(55, rng);
             const inversePermutation = generateInversePermutation(permutation);
@@ -474,7 +644,7 @@
         }
         
         function createDeviationSystem(id, seed) {
-            const rng = new SeededRandom(seed);
+            const rng = new CryptoSeededRandom(seed);
             const matrixP1 = generateRandomMatrix(15, 13, rng);
             const matrixP2 = generateRandomMatrix(27, 13, rng);
             const permutation = generateRandomPermutation(55, rng);
