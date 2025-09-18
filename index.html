@@ -64,6 +64,9 @@
                     <button onclick="generateSystems()">Generate Systems</button>
                     <button onclick="useDefaultSystems()" class="secondary-button">Use Default Systems</button>
                 </div>
+                <div class="progress-bar" id="systemGenerationProgress" style="display: none;">
+                    <div class="progress-fill" id="systemGenerationProgressFill" style="width: 0%"></div>
+                </div>
                 <div id="systemStatus" class="info"></div>
             </div>
         </div>
@@ -547,12 +550,14 @@
             }
         }
         
-        window.onload = function() {
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
             useDefaultSystems();
             setupEventListeners();
-        };
+        });
         
         function setupEventListeners() {
+            // Set up event listeners for radio buttons
             const recoverModeRadios = document.getElementsByName('recoverMode');
             const specificSystemInput = document.getElementById('specificSystemInput');
             
@@ -594,21 +599,71 @@
             currentMasterSeed = masterSeed;
             currentNumSystems = numSystems;
             
-            allSystems = [];
+            // Show progress bar for large system counts
+            const progressBar = document.getElementById('systemGenerationProgress');
+            const progressFill = document.getElementById('systemGenerationProgressFill');
             
-            const originalSystem = createOriginalSystem(1, masterSeed);
-            allSystems.push(originalSystem);
-            
-            for (let i = 2; i <= numSystems + 1; i++) {
-                const deviationSystem = createDeviationSystem(i, masterSeed + "-deviation-" + i);
-                allSystems.push(deviationSystem);
+            if (numSystems > 100) {
+                progressBar.style.display = 'block';
+                progressFill.style.width = '0%';
             }
+            
+            // Use setTimeout to prevent UI freezing
+            setTimeout(function() {
+                allSystems = [];
+                
+                // Generate original system
+                const originalSystem = createOriginalSystem(1, masterSeed);
+                allSystems.push(originalSystem);
+                
+                // Generate deviation systems in batches to prevent UI freezing
+                let systemsGenerated = 1;
+                const totalSystems = numSystems + 1;
+                
+                function generateBatch() {
+                    const batchSize = Math.min(100, totalSystems - systemsGenerated);
+                    const endTime = Date.now() + 50; // Process for max 50ms per batch
+                    
+                    while (systemsGenerated < totalSystems && Date.now() < endTime) {
+                        const deviationSystem = createDeviationSystem(
+                            systemsGenerated + 1, 
+                            masterSeed + "-deviation-" + (systemsGenerated + 1)
+                        );
+                        allSystems.push(deviationSystem);
+                        systemsGenerated++;
+                    }
+                    
+                    // Update progress
+                    if (numSystems > 100) {
+                        const progress = (systemsGenerated / totalSystems) * 100;
+                        progressFill.style.width = progress + '%';
+                    }
+                    
+                    if (systemsGenerated < totalSystems) {
+                        // Continue with next batch
+                        setTimeout(generateBatch, 0);
+                    } else {
+                        // All systems generated
+                        finishSystemGeneration(usedDefault, numSystems, masterSeed);
+                    }
+                }
+                
+                // Start batch generation
+                generateBatch();
+            }, 0);
+        }
+        
+        function finishSystemGeneration(usedDefault, numSystems, masterSeed) {
+            // Hide progress bar
+            const progressBar = document.getElementById('systemGenerationProgress');
+            progressBar.style.display = 'none';
             
             // Update max values for system index inputs
             document.getElementById('specificSystemIndex').max = allSystems.length;
             document.getElementById('generateSpecificSystemIndex').max = allSystems.length;
             
-            document.getElementById('systemStatus').innerHTML = `
+            // Update status
+            const statusHtml = `
                 <div class="success">
                     <strong>Systems Generated Successfully!</strong><br>
                     Total Systems: ${allSystems.length}<br>
@@ -622,6 +677,7 @@
                 ${usedDefault ? '<div class="warning">Note: Default master seed was used because none was provided.</div>' : ''}
             `;
             
+            document.getElementById('systemStatus').innerHTML = statusHtml;
             console.log(`Generated ${allSystems.length} systems with master seed: ${masterSeed}`);
         }
         
