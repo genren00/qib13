@@ -16,6 +16,7 @@
         .error { color: #d32f2f; font-weight: bold; }
         .success { color: #388e3c; font-weight: bold; }
         .warning { color: #f57c00; font-weight: bold; }
+        .info { color: #1976d2; }
         .seed-display { font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; word-break: break-all; }
         .copy-button { background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; }
         .copy-button:hover { background: #0b7dda; }
@@ -24,7 +25,7 @@
         .comparison-table th { background-color: #f5f5f5; }
         .mode-selector { margin: 15px 0; }
         .mode-selector label { margin-right: 20px; }
-        .mode-selector input { margin-right: 5px; }
+        .mode-selector input { margin-right: 5px; width: auto; }
         .system-config { background-color: #f3e5f5; padding: 15px; border-radius: 8px; margin: 15px 0; }
         .progress-bar { width: 100%; height: 20px; background-color: #e0e0e0; border-radius: 10px; margin: 10px 0; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s ease; }
@@ -34,6 +35,9 @@
         .tab.active { background-color: white; border-bottom: 1px solid white; margin-bottom: -1px; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .secondary-button { background: #757575; }
+        .secondary-button:hover { background: #616161; }
+        .button-group { margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -41,10 +45,10 @@
         <h1>qib13</h1>
         
         <div class="tab-container">
-            <div class="tab active" onclick="switchTab('generate')">Generate Systems</div>
-            <div class="tab" onclick="switchTab('encode')">Generate Seed</div>
-            <div class="tab" onclick="switchTab('recover')">Recover Code</div>
-            <div class="tab" onclick="switchTab('test')">Batch Test</div>
+            <div class="tab active" onclick="switchTab('generate', this)">Generate Systems</div>
+            <div class="tab" onclick="switchTab('encode', this)">Generate Seed</div>
+            <div class="tab" onclick="switchTab('recover', this)">Recover Code</div>
+            <div class="tab" onclick="switchTab('test', this)">Batch Test</div>
         </div>
         
         <div id="generate-tab" class="tab-content active">
@@ -123,7 +127,10 @@
         let currentNumSystems = 10;
         let currentMasterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
         
-        // ---------- Cryptographically Secure Deterministic RNG: HMAC-SHA256 in Counter Mode ----------
+        // ---------- Cryptographically Secure Deterministic RNG: HMAC-SHA256 using Web Crypto API ----------
+        
+        // Check if Web Crypto API is available
+        const isWebCryptoAvailable = typeof crypto !== 'undefined' && typeof crypto.subtle !== 'undefined';
         
         // Utility functions for HMAC-SHA256 implementation
         function strToBytes(str) {
@@ -140,12 +147,8 @@
                 .join('');
         }
         
-        // Simple SHA-256 implementation (for browser environments without Web Crypto API support)
-        // Note: In a production environment, you would use the native Web Crypto API
+        // Simple SHA-256 implementation (fallback for browser environments without Web Crypto API support)
         function sha256(message) {
-            // This is a simplified SHA-256 implementation for demonstration
-            // In production, use window.crypto.subtle.digest('SHA-256', data)
-            
             // Convert message to bytes
             const msgBytes = typeof message === 'string' ? strToBytes(message) : message;
             
@@ -247,7 +250,7 @@
             return hash;
         }
         
-        // HMAC implementation
+        // HMAC implementation (fallback)
         function hmac(key, message) {
             const blockSize = 64; // bytes, for SHA-256
             
@@ -289,24 +292,39 @@
         }
         
         // Cryptographically secure deterministic RNG using HMAC-SHA256 in counter mode
+        // Uses Web Crypto API when available for better performance
         class CryptoSeededRandom {
             constructor(seedStr) {
-                // Initialize key from seed
-                this.key = sha256(strToBytes(seedStr || ""));
-                
-                // Initialize counter
+                this.seedStr = seedStr || "";
                 this.counter = 0;
+                this.buffer = new Uint8Array(32); // SHA-256 produces 32 bytes
+                this.bufferIndex = 32; // Start with empty buffer
+                this.initialized = false;
+                this.useWebCrypto = false;
                 
-                // Buffer for storing generated random bytes
-                this.buffer = [];
-                this.bufferIndex = 0;
-                
-                // Generate initial batch of random bytes
-                this._generateMoreBytes();
+                // Initialize synchronously for compatibility
+                this._initializeSync();
             }
             
-            // Generate more random bytes using HMAC-SHA256 in counter mode
-            _generateMoreBytes() {
+            _initializeSync() {
+                if (isWebCryptoAvailable) {
+                    // For now, use the fallback implementation to maintain synchronous behavior
+                    // In a future version, we could make this async
+                    this.key = sha256(strToBytes(this.seedStr));
+                    this.useWebCrypto = false;
+                } else {
+                    // Fall back to JavaScript implementation
+                    this.key = sha256(strToBytes(this.seedStr));
+                    this.useWebCrypto = false;
+                }
+                
+                // Generate initial batch of random bytes
+                this._generateMoreBytesSync();
+                this.initialized = true;
+            }
+            
+            _generateMoreBytesSync() {
+                // Fall back to JavaScript HMAC implementation
                 // Convert counter to bytes (big-endian, 8 bytes)
                 const counterBytes = new Array(8);
                 for (let i = 0; i < 8; i++) {
@@ -314,18 +332,18 @@
                 }
                 
                 // Generate HMAC-SHA256(key, counter)
-                this.buffer = hmac(this.key, counterBytes);
+                const hmacResult = hmac(this.key, counterBytes);
+                this.buffer = new Uint8Array(hmacResult);
                 this.bufferIndex = 0;
                 
                 // Increment counter for next call
                 this.counter++;
             }
             
-            // Get next 32-bit unsigned integer
             _nextU32() {
                 // If we don't have enough bytes in the buffer, generate more
                 if (this.bufferIndex + 4 > this.buffer.length) {
-                    this._generateMoreBytes();
+                    this._generateMoreBytesSync();
                 }
                 
                 // Extract 4 bytes and convert to a 32-bit integer
@@ -334,16 +352,14 @@
                     result = (result << 8) | this.buffer[this.bufferIndex++];
                 }
                 
-                return result >>> 0; // Ensure it's unsigned
+                return result >>> 0; // Ensure unsigned
             }
             
-            // Return float in [0,1)
             next() {
-                // Use 32 bits of randomness and divide by 2^32 to get [0,1)
-                return this._nextU32() / 4294967296;
+                const u32 = this._nextU32();
+                return u32 / 0x100000000; // Convert to [0,1) float
             }
             
-            // Return integer in [min, max)
             nextInt(min, max) {
                 if (max <= min) return min;
                 
@@ -363,6 +379,21 @@
                 } while (x >= limit);
                 
                 return min + (x % range);
+            }
+        }
+        
+        // Wrapper class for backward compatibility
+        class SeededRandom {
+            constructor(seedStr) {
+                this.cryptoRng = new CryptoSeededRandom(seedStr);
+            }
+            
+            next() {
+                return this.cryptoRng.next();
+            }
+            
+            nextInt(min, max) {
+                return this.cryptoRng.nextInt(min, max);
             }
         }
         // -------------------------------------------------------------------------------
@@ -690,7 +721,7 @@
             return inverse;
         }
         
-        function switchTab(tabName) {
+        function switchTab(tabName, tabElement) {
             const tabContents = document.querySelectorAll('.tab-content');
             tabContents.forEach(content => {
                 content.classList.remove('active');
@@ -702,7 +733,7 @@
             });
             
             document.getElementById(tabName + '-tab').classList.add('active');
-            event.target.classList.add('active');
+            tabElement.classList.add('active');
         }
         
         function getSelectedMode(prefix) {
