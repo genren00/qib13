@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>qib13</title>
+    
+</head>
+<body>
+    <div class="container">
+        <h1>qib13</h1>
+        
+        <div class="tab-container">
+            <div class="tab active" onclick="switchTab('generate', this)">Generate Systems</div>
+            <div class="tab" onclick="switchTab('encode', this)">Generate Seed</div>
+            <div class="tab" onclick="switchTab('recover', this)">Recover Code</div>
+            <div class="tab" onclick="switchTab('test', this)">Batch Test</div>
+        </div>
+        
+        <div id="generate-tab" class="tab-content active">
+            <div class="section">
+                <h2>Generate Reproducible Systems</h2>
+                <div class="system-config">
+                    <label for="masterSeed">Master Seed:</label>
+                    <input type="text" id="masterSeed" placeholder="Enter your master seed">
+                    
+                    <label for="numSystems">Number of Deviation Systems (N):</label>
+                    <input type="number" id="numSystems" min="1" max="100" value="10">
+                    
+                    <button onclick="generateSystems()">Generate Systems</button>
+                    <button onclick="useDefaultSystems()" class="secondary-button">Use Default Systems</button>
+                </div>
+                <div class="progress-bar" id="systemGenerationProgress" style="display: none;">
+                    <div class="progress-fill" id="systemGenerationProgressFill" style="width: 0%"></div>
+                </div>
+                <div id="systemStatus" class="info"></div>
+            </div>
+        </div>
+        
+        <div id="encode-tab" class="tab-content">
+            <div class="section">
+                <h2>Generate Seed from Generator Code</h2>
+                <input type="text" id="generatorCodeInput" maxlength="13" placeholder="Enter 13-letter generator code (a-z)">
+                
+                <div class="mode-selector">
+                    <label><input type="radio" name="generateMode" value="original" checked> Original Mode (System 1)</label>
+                    <label><input type="radio" name="generateMode" value="deviation"> Deviation Mode (System 2)</label>
+                    <label><input type="radio" name="generateMode" value="random"> Random System</label>
+                    <label><input type="radio" name="generateMode" value="specific"> Specific System</label>
+                </div>
+                
+                <div id="generateSpecificSystemInput" style="display: none; margin: 10px 0;">
+                    <label for="generateSpecificSystemIndex">System Index (1-N):</label>
+                    <input type="number" id="generateSpecificSystemIndex" min="1" max="10" value="1">
+                </div>
+                
+                <button onclick="generateSeed()">Generate 55-Letter Seed</button>
+                <div id="generateResult" class="result"></div>
+            </div>
+        </div>
+        
+        <div id="recover-tab" class="tab-content">
+            <div class="section">
+                <h2>Recover Generator Code from Seed</h2>
+                <input type="text" id="seedInput" maxlength="55" placeholder="Enter 55-letter seed (a-z)">
+                
+                <div class="mode-selector">
+                    <label><input type="radio" name="recoverMode" value="sequential" checked> Sequential Recovery (Try All Systems)</label>
+                    <label><input type="radio" name="recoverMode" value="original"> Try Original Only</label>
+                    <label><input type="radio" name="recoverMode" value="specific"> Try Specific System</label>
+                </div>
+                
+                <div id="specificSystemInput" style="display: none; margin: 10px 0;">
+                    <label for="specificSystemIndex">System Index (1-N):</label>
+                    <input type="number" id="specificSystemIndex" min="1" max="10" value="1">
+                </div>
+                
+                <button onclick="recoverGeneratorCode()">Recover Generator Code</button>
+                <div id="recoverResult" class="result"></div>
+            </div>
+        </div>
+        
+        <div id="test-tab" class="tab-content">
+            <div class="section">
+                <h2>Batch Recovery Test</h2>
+                <div class="button-group">
+                    <button onclick="runBatchTest()">Run Batch Test</button>
+                    <button onclick="clearBatchResults()" class="secondary-button">Clear Results</button>
+                </div>
+                <div id="batchResult" class="result"></div>
+            </div>
+        </div>
+    </div>
+    
+</body>
+</html>
