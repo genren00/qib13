@@ -2,7 +2,7 @@
 A mnemonic-like tool for qubic (can be adopted to other coins) I recommend running the html offline for min maxing security
 
 
-🔴🔴🔴🔴please dont use aaaaaa's as a generator code , its insecure 🔴🔴🔴
+🔴🔴🔴🔴Please don't use 'aaaaaa' as a generator code; it's insecure 🔴🔴🔴
 
 updated rng to HMAC Crypto rng , see (better rng commit for clarification)
 
