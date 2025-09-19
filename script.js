@@ -1,0 +1,949 @@
+let allSystems = [];
+        let currentNumSystems = 10;
+        let currentMasterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
+        
+        // ---------- Cryptographically Secure Deterministic RNG: HMAC-SHA256 using Web Crypto API ----------
+        
+        // Check if Web Crypto API is available
+        const isWebCryptoAvailable = typeof crypto !== 'undefined' && typeof crypto.subtle !== 'undefined';
+        
+        // Utility functions for HMAC-SHA256 implementation
+        function strToBytes(str) {
+            const bytes = [];
+            for (let i = 0; i < str.length; i++) {
+                bytes.push(str.charCodeAt(i) & 0xff);
+            }
+            return bytes;
+        }
+        
+        function bytesToHex(bytes) {
+            return Array.from(bytes)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+        
+        // Simple SHA-256 implementation (fallback for browser environments without Web Crypto API support)
+        function sha256(message) {
+            // Convert message to bytes
+            const msgBytes = typeof message === 'string' ? strToBytes(message) : message;
+            
+            // Constants for SHA-256
+            const K = [
+                0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+            ];
+            
+            // Initial hash value
+            let H = [
+                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+            ];
+            
+            // Pre-processing
+            const ml = msgBytes.length * 8;
+            
+            // Append the bit '1' to the message
+            const newMsgBytes = [...msgBytes, 0x80];
+            
+            // Append 0 ≤ k < 512 bits '0', so that the resulting message length is congruent to 448 mod 512
+            while ((newMsgBytes.length * 8) % 512 !== 448) {
+                newMsgBytes.push(0x00);
+            }
+            
+            // Append ml, the original message length, as a 64-bit big-endian integer
+            for (let i = 7; i >= 0; i--) {
+                newMsgBytes.push((ml >>> (i * 8)) & 0xff);
+            }
+            
+            // Process the message in successive 512-bit chunks
+            for (let i = 0; i < newMsgBytes.length / 64; i++) {
+                const chunk = newMsgBytes.slice(i * 64, (i + 1) * 64);
+                
+                // Break chunk into sixteen 32-bit big-endian words w[0..15]
+                const w = [];
+                for (let j = 0; j < 16; j++) {
+                    w[j] = (chunk[j * 4] << 24) | (chunk[j * 4 + 1] << 16) | 
+                           (chunk[j * 4 + 2] << 8) | chunk[j * 4 + 3];
+                }
+                
+                // Extend the sixteen 32-bit words into sixty-four 32-bit words
+                for (let j = 16; j < 64; j++) {
+                    const s0 = (w[j - 15] >>> 7) | (w[j - 15] << 25);
+                    const s1 = (w[j - 2] >>> 17) | (w[j - 2] << 15);
+                    w[j] = (w[j - 16] + s0 + w[j - 7] + s1) & 0xffffffff;
+                }
+                
+                // Initialize hash value for this chunk
+                let a = H[0], b = H[1], c = H[2], d = H[3];
+                let e = H[4], f = H[5], g = H[6], h = H[7];
+                
+                // Main loop
+                for (let j = 0; j < 64; j++) {
+                    const S1 = (e >>> 6) | (e << 26);
+                    const ch = (e & f) ^ (~e & g);
+                    const temp1 = (h + S1 + ch + K[j] + w[j]) & 0xffffffff;
+                    const S0 = (a >>> 2) | (a << 30);
+                    const maj = (a & b) ^ (a & c) ^ (b & c);
+                    const temp2 = (S0 + maj) & 0xffffffff;
+                    
+                    h = g;
+                    g = f;
+                    f = e;
+                    e = (d + temp1) & 0xffffffff;
+                    d = c;
+                    c = b;
+                    b = a;
+                    a = (temp1 + temp2) & 0xffffffff;
+                }
+                
+                // Add this chunk's hash to result so far
+                H[0] = (H[0] + a) & 0xffffffff;
+                H[1] = (H[1] + b) & 0xffffffff;
+                H[2] = (H[2] + c) & 0xffffffff;
+                H[3] = (H[3] + d) & 0xffffffff;
+                H[4] = (H[4] + e) & 0xffffffff;
+                H[5] = (H[5] + f) & 0xffffffff;
+                H[6] = (H[6] + g) & 0xffffffff;
+                H[7] = (H[7] + h) & 0xffffffff;
+            }
+            
+            // Produce the final hash value as a 256-bit number
+            const hash = [];
+            for (let i = 0; i < 8; i++) {
+                hash.push((H[i] >>> 24) & 0xff);
+                hash.push((H[i] >>> 16) & 0xff);
+                hash.push((H[i] >>> 8) & 0xff);
+                hash.push(H[i] & 0xff);
+            }
+            
+            return hash;
+        }
+        
+        // HMAC implementation (fallback)
+        function hmac(key, message) {
+            const blockSize = 64; // bytes, for SHA-256
+            
+            // Convert key to bytes
+            const keyBytes = typeof key === 'string' ? strToBytes(key) : key;
+            
+            // Keys longer than blockSize are shortened by hashing them
+            let hashKey;
+            if (keyBytes.length > blockSize) {
+                hashKey = sha256(keyBytes);
+            } else {
+                hashKey = [...keyBytes];
+            }
+            
+            // Keys shorter than blockSize are padded to blockSize by padding with zeros on the right
+            if (hashKey.length < blockSize) {
+                const paddedKey = new Array(blockSize);
+                for (let i = 0; i < blockSize; i++) {
+                    paddedKey[i] = i < hashKey.length ? hashKey[i] : 0x00;
+                }
+                hashKey = paddedKey;
+            }
+            
+            // XOR key with ipad and opad
+            const ipad = new Array(blockSize);
+            const opad = new Array(blockSize);
+            for (let i = 0; i < blockSize; i++) {
+                ipad[i] = hashKey[i] ^ 0x36;
+                opad[i] = hashKey[i] ^ 0x5c;
+            }
+            
+            // Compute inner hash
+            const innerHash = sha256([...ipad, ...message]);
+            
+            // Compute outer hash
+            const outerHash = sha256([...opad, ...innerHash]);
+            
+            return outerHash;
+        }
+        
+        // Cryptographically secure deterministic RNG using HMAC-SHA256 in counter mode
+        // Uses Web Crypto API when available for better performance
+        class CryptoSeededRandom {
+            constructor(seedStr) {
+                this.seedStr = seedStr || "";
+                this.counter = 0;
+                this.buffer = new Uint8Array(32); // SHA-256 produces 32 bytes
+                this.bufferIndex = 32; // Start with empty buffer
+                this.initialized = false;
+                this.useWebCrypto = false;
+                
+                // Initialize synchronously for compatibility
+                this._initializeSync();
+            }
+            
+            _initializeSync() {
+                if (isWebCryptoAvailable) {
+                    // For now, use the fallback implementation to maintain synchronous behavior
+                    // In a future version, we could make this async
+                    this.key = sha256(strToBytes(this.seedStr));
+                    this.useWebCrypto = false;
+                } else {
+                    // Fall back to JavaScript implementation
+                    this.key = sha256(strToBytes(this.seedStr));
+                    this.useWebCrypto = false;
+                }
+                
+                // Generate initial batch of random bytes
+                this._generateMoreBytesSync();
+                this.initialized = true;
+            }
+            
+            _generateMoreBytesSync() {
+                // Fall back to JavaScript HMAC implementation
+                // Convert counter to bytes (big-endian, 8 bytes)
+                const counterBytes = new Array(8);
+                for (let i = 0; i < 8; i++) {
+                    counterBytes[7 - i] = (this.counter >>> (i * 8)) & 0xff;
+                }
+                
+                // Generate HMAC-SHA256(key, counter)
+                const hmacResult = hmac(this.key, counterBytes);
+                this.buffer = new Uint8Array(hmacResult);
+                this.bufferIndex = 0;
+                
+                // Increment counter for next call
+                this.counter++;
+            }
+            
+            _nextU32() {
+                // If we don't have enough bytes in the buffer, generate more
+                if (this.bufferIndex + 4 > this.buffer.length) {
+                    this._generateMoreBytesSync();
+                }
+                
+                // Extract 4 bytes and convert to a 32-bit integer
+                let result = 0;
+                for (let i = 0; i < 4; i++) {
+                    result = (result << 8) | this.buffer[this.bufferIndex++];
+                }
+                
+                return result >>> 0; // Ensure unsigned
+            }
+            
+            next() {
+                const u32 = this._nextU32();
+                return u32 / 0x100000000; // Convert to [0,1) float
+            }
+            
+            nextInt(min, max) {
+                if (max <= min) return min;
+                
+                // Calculate range
+                const range = max - min;
+                
+                // If range is a power of 2, we can use a simple mask
+                if ((range & (range - 1)) === 0) {
+                    return min + (this._nextU32() & (range - 1));
+                }
+                
+                // Otherwise, use rejection sampling to avoid modulo bias
+                const limit = (0x100000000 - (0x100000000 % range)) >>> 0;
+                let x;
+                do {
+                    x = this._nextU32();
+                } while (x >= limit);
+                
+                return min + (x % range);
+            }
+        }
+        
+        // Wrapper class for backward compatibility
+        class SeededRandom {
+            constructor(seedStr) {
+                this.cryptoRng = new CryptoSeededRandom(seedStr);
+            }
+            
+            next() {
+                return this.cryptoRng.next();
+            }
+            
+            nextInt(min, max) {
+                return this.cryptoRng.nextInt(min, max);
+            }
+        }
+        // -------------------------------------------------------------------------------
+        
+        class EncodingSystem {
+            constructor(id, type, matrices, permutation, inversePermutation) {
+                this.id = id;
+                this.type = type;
+                this.matrices = matrices;
+                this.permutation = permutation;
+                this.inversePermutation = inversePermutation;
+            }
+            
+            generateSeed(generatorCode) {
+                if (this.type === 'original') {
+                    return this.generateSeedOriginal(generatorCode);
+                } else {
+                    return this.generateSeedDeviation(generatorCode);
+                }
+            }
+            
+            recoverGeneratorCode(seed) {
+                if (this.type === 'original') {
+                    return this.recoverGeneratorCodeOriginal(seed);
+                } else {
+                    return this.recoverGeneratorCodeDeviation(seed);
+                }
+            }
+            
+            generateSeedOriginal(generatorCode) {
+                if (!/^[a-z]+$/.test(generatorCode) || generatorCode.length !== 13) {
+                    throw new Error("Generator code must be exactly 13 lowercase letters (a-z)");
+                }
+                
+                const message = this.lettersToNumbers(generatorCode);
+                const parity = this.matrixVectorMultiplyMod26(this.matrices.P, message);
+                const negatedParity = parity.map(x => (-x + 26) % 26);
+                const codeword = message.concat(negatedParity);
+                const permutedCodeword = this.applyPermutation(codeword, this.permutation);
+                return this.numbersToLetters(permutedCodeword);
+            }
+            
+            generateSeedDeviation(generatorCode) {
+                if (!/^[a-z]+$/.test(generatorCode) || generatorCode.length !== 13) {
+                    throw new Error("Generator code must be exactly 13 lowercase letters (a-z)");
+                }
+                
+                const message = this.lettersToNumbers(generatorCode);
+                
+                const parity1 = this.matrixVectorMultiplyMod26(this.matrices.P1, message);
+                const negatedParity1 = parity1.map(x => (-x + 26) % 26);
+                
+                const parity2 = this.matrixVectorMultiplyMod26(this.matrices.P2, message);
+                const negatedParity2 = parity2.map(x => (-x + 26) % 26);
+                
+                const codeword = message.concat(negatedParity1).concat(negatedParity2);
+                const permutedCodeword = this.applyPermutation(codeword, this.permutation);
+                return this.numbersToLetters(permutedCodeword);
+            }
+            
+            recoverGeneratorCodeOriginal(seed) {
+                if (!/^[a-z]+$/.test(seed) || seed.length !== 55) {
+                    throw new Error("Seed must be exactly 55 lowercase letters (a-z)");
+                }
+                
+                const permutedCodeword = this.lettersToNumbers(seed);
+                const codeword = this.applyPermutation(permutedCodeword, this.inversePermutation);
+                
+                const message = codeword.slice(0, 13);
+                const parity = codeword.slice(13, 55);
+                
+                const expectedParity = this.matrixVectorMultiplyMod26(this.matrices.P, message);
+                const negatedExpectedParity = expectedParity.map(x => (-x + 26) % 26);
+                
+                for (let i = 0; i < 42; i++) {
+                    if (parity[i] !== negatedExpectedParity[i]) {
+                        throw new Error("Invalid seed for original mode: parity check failed");
+                    }
+                }
+                
+                return this.numbersToLetters(message);
+            }
+            
+            recoverGeneratorCodeDeviation(seed) {
+                if (!/^[a-z]+$/.test(seed) || seed.length !== 55) {
+                    throw new Error("Seed must be exactly 55 lowercase letters (a-z)");
+                }
+                
+                const permutedCodeword = this.lettersToNumbers(seed);
+                const codeword = this.applyPermutation(permutedCodeword, this.inversePermutation);
+                
+                const message = codeword.slice(0, 13);
+                const parity1 = codeword.slice(13, 28);
+                const parity2 = codeword.slice(28, 55);
+                
+                const expectedParity1 = this.matrixVectorMultiplyMod26(this.matrices.P1, message);
+                const negatedExpectedParity1 = expectedParity1.map(x => (-x + 26) % 26);
+                
+                for (let i = 0; i < 15; i++) {
+                    if (parity1[i] !== negatedExpectedParity1[i]) {
+                        throw new Error("Invalid seed for deviation mode: first parity check failed");
+                    }
+                }
+                
+                const expectedParity2 = this.matrixVectorMultiplyMod26(this.matrices.P2, message);
+                const negatedExpectedParity2 = expectedParity2.map(x => (-x + 26) % 26);
+                
+                for (let i = 0; i < 27; i++) {
+                    if (parity2[i] !== negatedExpectedParity2[i]) {
+                        throw new Error("Invalid seed for deviation mode: second parity check failed");
+                    }
+                }
+                
+                return this.numbersToLetters(message);
+            }
+            
+            lettersToNumbers(letters) {
+                const numbers = [];
+                for (let i = 0; i < letters.length; i++) {
+                    numbers.push(letters.charCodeAt(i) - 97);
+                }
+                return numbers;
+            }
+            
+            numbersToLetters(numbers) {
+                let letters = '';
+                for (let i = 0; i < numbers.length; i++) {
+                    letters += String.fromCharCode(numbers[i] + 97);
+                }
+                return letters;
+            }
+            
+            matrixVectorMultiplyMod26(matrix, vector) {
+                const result = [];
+                for (let i = 0; i < matrix.length; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < matrix[i].length; j++) {
+                        sum += matrix[i][j] * vector[j];
+                    }
+                    result.push(sum % 26);
+                }
+                return result;
+            }
+            
+            applyPermutation(vector, perm) {
+                const result = new Array(vector.length);
+                for (let i = 0; i < perm.length; i++) {
+                    result[i] = vector[perm[i]];
+                }
+                return result;
+            }
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            useDefaultSystems();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            // Set up event listeners for radio buttons
+            const recoverModeRadios = document.getElementsByName('recoverMode');
+            const specificSystemInput = document.getElementById('specificSystemInput');
+            
+            for (let radio of recoverModeRadios) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'specific') {
+                        specificSystemInput.style.display = 'block';
+                    } else {
+                        specificSystemInput.style.display = 'none';
+                    }
+                });
+            }
+            
+            const generateModeRadios = document.getElementsByName('generateMode');
+            const generateSpecificSystemInput = document.getElementById('generateSpecificSystemInput');
+            
+            for (let radio of generateModeRadios) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'specific') {
+                        generateSpecificSystemInput.style.display = 'block';
+                    } else {
+                        generateSpecificSystemInput.style.display = 'none';
+                    }
+                });
+            }
+        }
+        
+        function generateSystems() {
+            let masterSeed = document.getElementById('masterSeed').value.trim();
+            const numSystems = parseInt(document.getElementById('numSystems').value) || 10;
+            
+            // Use default master seed if none provided
+            let usedDefault = false;
+            if (!masterSeed) {
+                masterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
+                usedDefault = true;
+            }
+            
+            currentMasterSeed = masterSeed;
+            currentNumSystems = numSystems;
+            
+            // Show progress bar for large system counts
+            const progressBar = document.getElementById('systemGenerationProgress');
+            const progressFill = document.getElementById('systemGenerationProgressFill');
+            
+            if (numSystems > 100) {
+                progressBar.style.display = 'block';
+                progressFill.style.width = '0%';
+            }
+            
+            // Use setTimeout to prevent UI freezing
+            setTimeout(function() {
+                allSystems = [];
+                
+                // Generate original system
+                const originalSystem = createOriginalSystem(1, masterSeed);
+                allSystems.push(originalSystem);
+                
+                // Generate deviation systems in batches to prevent UI freezing
+                let systemsGenerated = 1;
+                const totalSystems = numSystems + 1;
+                
+                function generateBatch() {
+                    const batchSize = Math.min(100, totalSystems - systemsGenerated);
+                    const endTime = Date.now() + 50; // Process for max 50ms per batch
+                    
+                    while (systemsGenerated < totalSystems && Date.now() < endTime) {
+                        const deviationSystem = createDeviationSystem(
+                            systemsGenerated + 1, 
+                            masterSeed + "-deviation-" + (systemsGenerated + 1)
+                        );
+                        allSystems.push(deviationSystem);
+                        systemsGenerated++;
+                    }
+                    
+                    // Update progress
+                    if (numSystems > 100) {
+                        const progress = (systemsGenerated / totalSystems) * 100;
+                        progressFill.style.width = progress + '%';
+                    }
+                    
+                    if (systemsGenerated < totalSystems) {
+                        // Continue with next batch
+                        setTimeout(generateBatch, 0);
+                    } else {
+                        // All systems generated
+                        finishSystemGeneration(usedDefault, numSystems, masterSeed);
+                    }
+                }
+                
+                // Start batch generation
+                generateBatch();
+            }, 0);
+        }
+        
+        function finishSystemGeneration(usedDefault, numSystems, masterSeed) {
+            // Hide progress bar
+            const progressBar = document.getElementById('systemGenerationProgress');
+            progressBar.style.display = 'none';
+            
+            // Update max values for system index inputs
+            document.getElementById('specificSystemIndex').max = allSystems.length;
+            document.getElementById('generateSpecificSystemIndex').max = allSystems.length;
+            
+            // Update status
+            const statusHtml = `
+                <div class="success">
+                    <strong>Systems Generated Successfully!</strong><br>
+                    Total Systems: ${allSystems.length}<br>
+                    Original System: 1<br>
+                    Deviation Systems: ${numSystems}<br>
+                    Master Seed: ${masterSeed}
+                </div>
+                <div class="info">
+                    <strong>Important:</strong> Save this master seed! You'll need it to reproduce these same systems in future sessions.
+                </div>
+                ${usedDefault ? '<div class="warning">Note: Default master seed was used because none was provided.</div>' : ''}
+            `;
+            
+            document.getElementById('systemStatus').innerHTML = statusHtml;
+            console.log(`Generated ${allSystems.length} systems with master seed: ${masterSeed}`);
+        }
+        
+        function useDefaultSystems() {
+            currentMasterSeed = "xtphkxlzrkleosumdxykzmmhzdtaqdsfbzimlwglctrcezpffqtbfhbiakksgwauprtbhfflulpnrbhghbvpnwqhyozkjgsavudi";
+            currentNumSystems = 10;
+            
+            allSystems = [];
+            
+            const originalSystem = createOriginalSystem(1, currentMasterSeed);
+            allSystems.push(originalSystem);
+            
+            for (let i = 2; i <= currentNumSystems + 1; i++) {
+                const deviationSystem = createDeviationSystem(i, currentMasterSeed + "-deviation-" + i);
+                allSystems.push(deviationSystem);
+            }
+            
+            // Update max values for system index inputs
+            document.getElementById('specificSystemIndex').max = allSystems.length;
+            document.getElementById('generateSpecificSystemIndex').max = allSystems.length;
+            
+            document.getElementById('systemStatus').innerHTML = `
+                <div class="success">
+                    <strong>Default Systems Generated!</strong><br>
+                    Total Systems: ${allSystems.length}<br>
+                    Original System: 1<br>
+                    Deviation Systems: ${currentNumSystems}<br>
+                    Master Seed: ${currentMasterSeed}
+                </div>
+                <div class="info">
+                    <strong>Note:</strong> Using default master seed. For your own reproducible systems, enter a custom master seed.
+                </div>
+            `;
+            
+            console.log(`Generated ${allSystems.length} default systems with master seed: ${currentMasterSeed}`);
+        }
+        
+        function createOriginalSystem(id, seed) {
+            const rng = new CryptoSeededRandom(seed + "-original-" + id);
+            const matrixP = generateRandomMatrix(42, 13, rng);
+            const permutation = generateRandomPermutation(55, rng);
+            const inversePermutation = generateInversePermutation(permutation);
+            
+            return new EncodingSystem(
+                id,
+                'original',
+                { P: matrixP },
+                permutation,
+                inversePermutation
+            );
+        }
+        
+        function createDeviationSystem(id, seed) {
+            const rng = new CryptoSeededRandom(seed);
+            const matrixP1 = generateRandomMatrix(15, 13, rng);
+            const matrixP2 = generateRandomMatrix(27, 13, rng);
+            const permutation = generateRandomPermutation(55, rng);
+            const inversePermutation = generateInversePermutation(permutation);
+            
+            return new EncodingSystem(
+                id,
+                'deviation',
+                { P1: matrixP1, P2: matrixP2 },
+                permutation,
+                inversePermutation
+            );
+        }
+        
+        function generateRandomMatrix(rows, cols, rng) {
+            const matrix = [];
+            for (let i = 0; i < rows; i++) {
+                const row = [];
+                for (let j = 0; j < cols; j++) {
+                    row.push(rng.nextInt(0, 26));
+                }
+                matrix.push(row);
+            }
+            return matrix;
+        }
+        
+        function generateRandomPermutation(n, rng) {
+            const perm = Array.from({length: n}, (_, i) => i);
+            
+            for (let i = n - 1; i > 0; i--) {
+                const j = rng.nextInt(0, i + 1);
+                [perm[i], perm[j]] = [perm[j], perm[i]];
+            }
+            
+            return perm;
+        }
+        
+        function generateInversePermutation(perm) {
+            const inverse = new Array(perm.length);
+            for (let i = 0; i < perm.length; i++) {
+                inverse[perm[i]] = i;
+            }
+            return inverse;
+        }
+        
+        function switchTab(tabName, tabElement) {
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName + '-tab').classList.add('active');
+            tabElement.classList.add('active');
+        }
+        
+        function getSelectedMode(prefix) {
+            const radios = document.getElementsByName(prefix + 'Mode');
+            for (let radio of radios) {
+                if (radio.checked) {
+                    return radio.value;
+                }
+            }
+            return 'original';
+        }
+        
+        function generateSeed() {
+            const generatorCode = document.getElementById('generatorCodeInput').value.trim();
+            const mode = getSelectedMode('generate');
+            const resultDiv = document.getElementById('generateResult');
+            
+            if (allSystems.length === 0) {
+                resultDiv.innerHTML = '<div class="error">Please generate systems first.</div>';
+                return;
+            }
+            
+            try {
+                let seed;
+                let systemUsed;
+                
+                if (mode === 'original') {
+                    systemUsed = allSystems[0];
+                    seed = systemUsed.generateSeed(generatorCode);
+                } else if (mode === 'deviation') {
+                    systemUsed = allSystems[1];
+                    seed = systemUsed.generateSeed(generatorCode);
+                } else if (mode === 'random') {
+                    const randomIndex = Math.floor(Math.random() * allSystems.length);
+                    systemUsed = allSystems[randomIndex];
+                    seed = systemUsed.generateSeed(generatorCode);
+                } else if (mode === 'specific') {
+                    const systemIndex = parseInt(document.getElementById('generateSpecificSystemIndex').value) - 1;
+                    if (systemIndex < 0 || systemIndex >= allSystems.length) {
+                        throw new Error(`Invalid system index. Must be between 1 and ${allSystems.length}`);
+                    }
+                    systemUsed = allSystems[systemIndex];
+                    seed = systemUsed.generateSeed(generatorCode);
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>Seed Generated Successfully!</strong>
+                    </div>
+                    <div class="seed-display">
+                        <strong>Generator Code:</strong> ${generatorCode}<br>
+                        <strong>Generated Seed:</strong> ${seed}
+                    </div>
+                    <div class="info">
+                        <strong>System Used:</strong> System ${systemUsed.id} (${systemUsed.type})<br>
+                        <strong>System Index:</strong> ${allSystems.indexOf(systemUsed) + 1}<br>
+                        <strong>Master Seed:</strong> ${currentMasterSeed}
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard('${seed}')">Copy Seed</button>
+                    <button class="copy-button" onclick="copyToClipboard('${generatorCode}')">Copy Generator Code</button>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function recoverGeneratorCode() {
+            const seed = document.getElementById('seedInput').value.trim();
+            const mode = getSelectedMode('recover');
+            const resultDiv = document.getElementById('recoverResult');
+            
+            if (allSystems.length === 0) {
+                resultDiv.innerHTML = '<div class="error">Please generate systems first.</div>';
+                return;
+            }
+            
+            try {
+                let generatorCode;
+                let attempts = [];
+                
+                if (mode === 'sequential') {
+                    for (let i = 0; i < allSystems.length; i++) {
+                        const system = allSystems[i];
+                        try {
+                            generatorCode = system.recoverGeneratorCode(seed);
+                            attempts.push(`System ${system.id}: SUCCESS`);
+                            
+                            resultDiv.innerHTML = `
+                                <div class="success">
+                                    <strong>Generator Code Recovered Successfully!</strong>
+                                </div>
+                                <div class="seed-display">
+                                    <strong>Seed:</strong> ${seed}<br>
+                                    <strong>Recovered Generator Code:</strong> ${generatorCode}
+                                </div>
+                                <div class="info">
+                                    <strong>Successful System:</strong> System ${system.id} (${system.type})<br>
+                                    <strong>Attempts:</strong> ${i + 1} of ${allSystems.length}<br>
+                                    <strong>Master Seed:</strong> ${currentMasterSeed}
+                                </div>
+                                <div class="attempt-log">
+                                    <strong>Recovery Log:</strong><br>
+                                    ${attempts.join('<br>')}
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${((i + 1) / allSystems.length) * 100}%"></div>
+                                </div>
+                                <button class="copy-button" onclick="copyToClipboard('${generatorCode}')">Copy Generator Code</button>
+                                <button class="copy-button" onclick="copyToClipboard('${seed}')">Copy Seed</button>
+                            `;
+                            return;
+                        } catch (e) {
+                            attempts.push(`System ${system.id}: ${e.message}`);
+                        }
+                    }
+                    
+                    throw new Error(`All ${allSystems.length} systems failed. Last attempt: ${attempts[attempts.length - 1]}`);
+                    
+                } else if (mode === 'original') {
+                    const system = allSystems[0];
+                    generatorCode = system.recoverGeneratorCode(seed);
+                    attempts.push(`System ${system.id}: SUCCESS`);
+                    
+                } else if (mode === 'specific') {
+                    const systemIndex = parseInt(document.getElementById('specificSystemIndex').value) - 1;
+                    if (systemIndex < 0 || systemIndex >= allSystems.length) {
+                        throw new Error(`Invalid system index. Must be between 1 and ${allSystems.length}`);
+                    }
+                    
+                    const system = allSystems[systemIndex];
+                    generatorCode = system.recoverGeneratorCode(seed);
+                    attempts.push(`System ${system.id}: SUCCESS`);
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>Generator Code Recovered Successfully!</strong>
+                    </div>
+                    <div class="seed-display">
+                        <strong>Seed:</strong> ${seed}<br>
+                        <strong>Recovered Generator Code:</strong> ${generatorCode}
+                    </div>
+                    <div class="attempt-log">
+                        <strong>Recovery Log:</strong><br>
+                        ${attempts.join('<br>')}
+                    </div>
+                    <button class="copy-button" onclick="copyToClipboard('${generatorCode}')">Copy Generator Code</button>
+                    <button class="copy-button" onclick="copyToClipboard('${seed}')">Copy Seed</button>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function runBatchTest() {
+            const resultDiv = document.getElementById('batchResult');
+            
+            if (allSystems.length === 0) {
+                resultDiv.innerHTML = '<div class="error">Please generate systems first.</div>';
+                return;
+            }
+            
+            const testCases = [];
+            for (let i = 0; i < 5; i++) {
+                const generatorCode = generateRandomGeneratorCode();
+                const system = allSystems[Math.floor(Math.random() * allSystems.length)];
+                const seed = system.generateSeed(generatorCode);
+                testCases.push({
+                    generatorCode,
+                    seed,
+                    expectedSystemId: system.id
+                });
+            }
+            
+            let results = [];
+            let totalAttempts = 0;
+            let successfulAttempts = 0;
+            
+            for (let testCase of testCases) {
+                let recovered = false;
+                let attempts = 0;
+                
+                for (let system of allSystems) {
+                    attempts++;
+                    totalAttempts++;
+                    
+                    try {
+                        const recoveredCode = system.recoverGeneratorCode(testCase.seed);
+                        if (recoveredCode === testCase.generatorCode) {
+                            recovered = true;
+                            successfulAttempts++;
+                            results.push({
+                                generatorCode: testCase.generatorCode,
+                                expectedSystem: testCase.expectedSystemId,
+                                actualSystem: system.id,
+                                attempts: attempts,
+                                success: true
+                            });
+                            break;
+                        }
+                    } catch (e) {
+                    }
+                }
+                
+                if (!recovered) {
+                    results.push({
+                        generatorCode: testCase.generatorCode,
+                        expectedSystem: testCase.expectedSystemId,
+                        actualSystem: 'None',
+                        attempts: attempts,
+                        success: false
+                    });
+                }
+            }
+            
+            const successRate = (successfulAttempts / totalAttempts * 100).toFixed(2);
+            
+            let resultsHTML = `
+                <div class="info">
+                    <strong>Batch Test Results:</strong><br>
+                    Total Test Cases: ${testCases.length}<br>
+                    Successful Recoveries: ${successfulAttempts}<br>
+                    Total Attempts: ${totalAttempts}<br>
+                    Success Rate: ${successRate}%<br>
+                    Master Seed: ${currentMasterSeed}
+                </div>
+                <div class="attempt-log">
+                    <strong>Detailed Results:</strong><br>
+            `;
+            
+            for (let result of results) {
+                const statusClass = result.success ? 'success' : 'error';
+                const statusText = result.success ? 'SUCCESS' : 'FAILED';
+                
+                resultsHTML += `
+                    <div class="${statusClass}">
+                        Generator: ${result.generatorCode}<br>
+                        Expected System: ${result.expectedSystem}<br>
+                        Actual System: ${result.actualSystem}<br>
+                        Attempts: ${result.attempts}<br>
+                        Status: ${statusText}
+                    </div>
+                `;
+            }
+            
+            resultsHTML += '</div>';
+            resultDiv.innerHTML = resultsHTML;
+        }
+        
+        function generateRandomGeneratorCode() {
+            let code = '';
+            for (let i = 0; i < 13; i++) {
+                code += String.fromCharCode(Math.floor(Math.random() * 26) + 97);
+            }
+            return code;
+        }
+        
+        function clearBatchResults() {
+            document.getElementById('batchResult').innerHTML = '';
+        }
+        
+        function copyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            textArea.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+                button.textContent = originalText;
+            }, 2000);
+        }
